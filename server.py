@@ -9,6 +9,9 @@ import json
 import os
 from datetime import datetime, date, timedelta
 from flask import Flask, request, jsonify, send_from_directory
+from openai import OpenAI
+
+client = OpenAI()
 
 app = Flask(__name__, static_folder='frontend')
 
@@ -78,6 +81,115 @@ def init_db():
             notes TEXT,
             created_at TEXT DEFAULT (datetime('now'))
         );
+
+        CREATE TABLE IF NOT EXISTS hatchery_batches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            bird_type TEXT DEFAULT 'broiler',
+            eggs_set INTEGER DEFAULT 0,
+            start_date TEXT,
+            expected_hatch TEXT,
+            temperature REAL DEFAULT 37.8,
+            humidity REAL DEFAULT 62,
+            status TEXT DEFAULT 'incubating',
+            fertile_count INTEGER DEFAULT 0,
+            hatched_count INTEGER DEFAULT 0,
+            notes TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS feed_formulas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            bird_type TEXT,
+            stage TEXT,
+            total_kg REAL DEFAULT 100,
+            protein_pct REAL,
+            energy_kcal REAL,
+            cost_per_ton REAL,
+            rating TEXT,
+            ai_analysis TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS feed_formula_ingredients (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            formula_id INTEGER,
+            ingredient TEXT NOT NULL,
+            percentage REAL DEFAULT 0,
+            kg_per_100 REAL DEFAULT 0,
+            price_per_kg REAL DEFAULT 0,
+            FOREIGN KEY(formula_id) REFERENCES feed_formulas(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS farm_notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            shed TEXT,
+            category TEXT DEFAULT 'general',
+            note TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS inventory (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            category TEXT DEFAULT 'other',
+            quantity REAL DEFAULT 0,
+            unit TEXT DEFAULT 'قطعة',
+            reorder_level REAL DEFAULT 5,
+            cost_per_unit REAL DEFAULT 0,
+            supplier TEXT,
+            expiry_date TEXT,
+            notes TEXT,
+            active INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS batches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            shed TEXT,
+            bird_type TEXT DEFAULT 'broiler',
+            start_date TEXT,
+            end_date TEXT,
+            chicks_count INTEGER DEFAULT 0,
+            chick_price REAL DEFAULT 0,
+            sold_count INTEGER DEFAULT 0,
+            sell_price_per_kg REAL DEFAULT 0,
+            sell_weight_kg REAL DEFAULT 0,
+            total_feed_kg REAL DEFAULT 0,
+            feed_cost REAL DEFAULT 0,
+            med_cost REAL DEFAULT 0,
+            other_cost REAL DEFAULT 0,
+            status TEXT DEFAULT 'active',
+            notes TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS market_prices (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            item_name TEXT NOT NULL,
+            category TEXT DEFAULT 'feed',
+            price REAL DEFAULT 0,
+            unit TEXT DEFAULT 'كغ',
+            trend TEXT DEFAULT 'stable',
+            date TEXT DEFAULT (date('now')),
+            notes TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS employees (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            role TEXT DEFAULT 'worker',
+            phone TEXT,
+            shed TEXT,
+            salary REAL DEFAULT 0,
+            join_date TEXT,
+            active INTEGER DEFAULT 1,
+            notes TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
     ''')
     
     # Seed data if empty
@@ -134,6 +246,48 @@ def add_cors_headers(response):
 def handle_options():
     if request.method == 'OPTIONS':
         return jsonify({}), 200
+
+# ==================== AI PROXY ====================
+@app.route('/api/ai/chat', methods=['POST'])
+def ai_chat():
+    data = request.json
+    messages = data.get('messages', [])
+    system_prompt = data.get('systemPrompt', "أنت خبير دواجن متخصص ومساعد ذكي لإدارة مزارع الدواجن. تجيب بالعربية بشكل احترافي ودقيق ومفصّل.")
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "system", "content": system_prompt}] + messages
+        )
+        return jsonify({'text': response.choices[0].message.content})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ai/analyze-image', methods=['POST'])
+def ai_analyze_image():
+    data = request.json
+    image_base64 = data.get('imageBase64')
+    prompt = data.get('prompt', "حلل هذه الصورة المتعلقة بالدواجن وقدم توصيات.")
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}
+                        },
+                    ],
+                }
+            ]
+        )
+        return jsonify({'text': response.choices[0].message.content})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # ==================== ROUTES ====================
 
@@ -330,14 +484,83 @@ def add_production():
     conn.close()
     return jsonify({'id': r.lastrowid, 'message': 'Log saved'})
 
+# HATCHERY
+@app.route('/api/hatchery', methods=['GET'])
+def get_hatchery():
+    conn = get_db()
+    batches = rows_to_list(conn.execute('SELECT * FROM hatchery_batches ORDER BY created_at DESC').fetchall())
+    conn.close()
+    return jsonify(batches)
+
+@app.route('/api/hatchery', methods=['POST'])
+def create_hatchery():
+    data = request.json
+    conn = get_db()
+    r = conn.execute('INSERT INTO hatchery_batches (name, bird_type, eggs_set, start_date, expected_hatch, temperature, humidity, notes) VALUES (?,?,?,?,?,?,?,?)',
+        (data['name'], data.get('bird_type','broiler'), data.get('eggs_set',0), data.get('start_date'), data.get('expected_hatch'), data.get('temperature',37.8), data.get('humidity',62), data.get('notes')))
+    conn.commit()
+    conn.close()
+    return jsonify({'id': r.lastrowid, 'message': 'Batch created'})
+
+# FEED FORMULAS
+@app.route('/api/feed-formulas', methods=['GET'])
+def get_formulas():
+    conn = get_db()
+    formulas = rows_to_list(conn.execute('SELECT * FROM feed_formulas ORDER BY created_at DESC').fetchall())
+    for f in formulas:
+        f['ingredients'] = rows_to_list(conn.execute('SELECT * FROM feed_formula_ingredients WHERE formula_id=?', (f['id'],)).fetchall())
+    conn.close()
+    return jsonify(formulas)
+
+@app.route('/api/feed-formulas', methods=['POST'])
+def create_formula():
+    data = request.json
+    conn = get_db()
+    r = conn.execute('INSERT INTO feed_formulas (name, bird_type, stage, total_kg, protein_pct, energy_kcal, cost_per_ton) VALUES (?,?,?,?,?,?,?)',
+        (data['name'], data.get('bird_type'), data.get('stage'), data.get('total_kg',100), data.get('protein_pct'), data.get('energy_kcal'), data.get('cost_per_ton')))
+    fid = r.lastrowid
+    if data.get('ingredients'):
+        for ing in data['ingredients']:
+            conn.execute('INSERT INTO feed_formula_ingredients (formula_id, ingredient, percentage, kg_per_100, price_per_kg) VALUES (?,?,?,?,?)',
+                (fid, ing['ingredient'], ing.get('percentage',0), ing.get('kg_per_100',0), ing.get('price_per_kg',0)))
+    conn.commit()
+    conn.close()
+    return jsonify({'id': fid, 'message': 'Formula saved'})
+
+# INVENTORY
+@app.route('/api/inventory', methods=['GET'])
+def get_inventory():
+    conn = get_db()
+    items = rows_to_list(conn.execute('SELECT * FROM inventory WHERE active=1 ORDER BY category, name').fetchall())
+    conn.close()
+    return jsonify(items)
+
+# NOTES
+@app.route('/api/notes', methods=['GET'])
+def get_notes():
+    conn = get_db()
+    notes = rows_to_list(conn.execute('SELECT * FROM farm_notes ORDER BY created_at DESC LIMIT 50').fetchall())
+    conn.close()
+    return jsonify(notes)
+
+@app.route('/api/notes', methods=['POST'])
+def create_note():
+    data = request.json
+    conn = get_db()
+    r = conn.execute('INSERT INTO farm_notes (shed, category, note) VALUES (?,?,?)',
+        (data.get('shed'), data.get('category','general'), data['note']))
+    conn.commit()
+    conn.close()
+    return jsonify({'id': r.lastrowid})
+
 # SERVE FRONTEND
 @app.route('/')
 @app.route('/<path:path>')
 def serve_frontend(path='index.html'):
-    frontend_dir = os.path.join(os.path.dirname(__file__), 'frontend')
-    if os.path.exists(os.path.join(frontend_dir, path)):
-        return send_from_directory(frontend_dir, path)
-    return send_from_directory(frontend_dir, 'index.html')
+    root_dir = os.path.dirname(__file__)
+    if os.path.exists(os.path.join(root_dir, path)):
+        return send_from_directory(root_dir, path)
+    return send_from_directory(root_dir, 'index.html')
 
 # ==================== MAIN ====================
 if __name__ == '__main__':

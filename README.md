@@ -8,23 +8,32 @@
 
 ## 🚀 تشغيل الموقع (3 خطوات فقط)
 
+### المتطلبات الأساسية للذكاء الاصطناعي:
+يجب توفير مفتاح **OpenAI API** ليعمل المساعد الذكي وتحليل الصور.
+قم بتعيين المفتاح في بيئة التشغيل:
+```bash
+export OPENAI_API_KEY='your-api-key-here'
+```
+
 ### Windows:
 1. ثبّت Python من: https://www.python.org/downloads/
    - **مهم**: ضع علامة على "Add Python to PATH" أثناء التثبيت
 2. افتح مجلد المشروع
-3. **انقر مرتين على ملف `start.bat`**
-4. افتح المتصفح واكتب: **http://localhost:5000**
+3. قم بتثبيت المكتبات: `pip install flask openai`
+4. **انقر مرتين على ملف `start.bat`**
+5. افتح المتصفح واكتب: **http://localhost:5000**
 
 ### Mac / Linux:
 ```bash
+pip install flask openai
 chmod +x start.sh
 ./start.sh
 ```
 ثم افتح: **http://localhost:5000**
 
-### تثبيت يدوي (إذا فشل start.bat):
+### تثبيت يدوي:
 ```bash
-pip install flask
+pip install flask openai
 python server.py
 ```
 
@@ -34,11 +43,11 @@ python server.py
 ```
 poultry-system/
 ├── server.py          ← السيرفر الرئيسي (Python + Flask)
+├── server.js          ← سيرفر بديل (Node.js)
+├── index.html         ← واجهة الموقع الرئيسية
 ├── poultry.db         ← قاعدة البيانات (تُنشأ تلقائياً)
 ├── start.bat          ← تشغيل Windows
-├── start.sh           ← تشغيل Mac/Linux
-└── frontend/
-    └── index.html     ← واجهة الموقع
+└── start.sh           ← تشغيل Mac/Linux
 ```
 
 ---

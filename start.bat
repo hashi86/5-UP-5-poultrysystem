@@ -15,10 +15,10 @@ if %errorlevel% neq 0 (
 
 REM Install Flask if needed
 echo [1/3] التحقق من المتطلبات...
-pip show flask >nul 2>&1
+pip show flask openai >nul 2>&1
 if %errorlevel% neq 0 (
-    echo تثبيت Flask...
-    pip install flask
+    echo تثبيت المتطلبات (Flask, OpenAI)...
+    pip install flask openai
 )
 
 echo [2/3] تشغيل قاعدة البيانات...

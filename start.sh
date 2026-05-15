@@ -14,7 +14,7 @@ fi
 
 # Install Flask if needed
 echo "[1/3] التحقق من المتطلبات..."
-python3 -c "import flask" 2>/dev/null || pip3 install flask
+python3 -c "import flask, openai" 2>/dev/null || pip3 install flask openai
 
 echo "[2/3] تشغيل قاعدة البيانات..."
 echo "[3/3] تشغيل السيرفر..."
