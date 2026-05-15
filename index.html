@@ -2941,14 +2941,17 @@ async function aiAnalyzeImage(imageBase64, mediaType, prompt) {
 }
 
 // ==================== INIT ====================
+
 async function checkAPI() {
-  const data = await apiFetch('/health');
+  console.log("Local Mode Active - Skipping Server Health Check");
   const el = document.getElementById('dbStatus');
-  if (data && data.status === 'ok') {
+  if (el) {
     el.className = 'db-status db-online';
-    el.innerHTML = '<span class="db-dot"></span> متصل بقاعدة البيانات ✓';
-    loadDashboard();
-    apiFetch('/sheds/tick-age', { method:'POST' }).then(r => {
+    el.innerHTML = '<span class="db-dot"></span> متصل (وضع المحاكاة المحلية) ✓';
+  }
+  loadDashboard();
+}
+).then(r => {
       if (r && r.updated) {
         showToast('⏱️ تم تحديث عمر الطيور في جميع الحظائر تلقائياً');
       }
