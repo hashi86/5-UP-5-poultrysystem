@@ -2777,10 +2777,140 @@ canvas.prod-chart{width:100%;height:160px;display:block}
 
 <script>
 // ==================== CONFIG ====================
-const API = window.location.origin + '/api';
+const API = ""; // Local Mode
 let isAR = true;
 let chatHistory = [];
 let imgFile = null;
+
+
+// ==================== LOCAL MOCK DATA ====================
+const LOCAL_STORAGE_KEY = 'poultry_system_db';
+let db = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY)) || {
+    sheds: [
+        { id: 1, name: 'عنبر أ', bird_type: 'broiler', capacity: 10000, current_birds: 9800, age_days: 21, active: 1 },
+        { id: 2, name: 'عنبر ب', bird_type: 'broiler', capacity: 8000, current_birds: 7800, age_days: 14, active: 1 },
+        { id: 3, name: 'عنبر ج', bird_type: 'layer', capacity: 6000, current_birds: 5900, age_days: 180, active: 1 }
+    ],
+    tasks: [
+        { id: 1, title: 'إصلاح التهوية - عنبر ب (طارئ)', priority: 'high', time: 'الآن', done: 0, shed: 'عنبر ب' },
+        { id: 2, title: 'تحصين نيوكاسل - عنبر ب (8000 طير)', priority: 'high', time: '8:00 ص', done: 0, shed: 'عنبر ب' },
+        { id: 3, title: 'وزن عينة طيور - عنبر أ (50 طير)', priority: 'med', time: '10:00 ص', done: 1, shed: 'عنبر أ' }
+    ],
+    alerts: [
+        { id: 1, type: 'temperature', title: 'طارئ - حرارة مرتفعة عنبر ب', message: '36°م - يتجاوز الحد الأقصى', severity: 'danger', read: 0 },
+        { id: 2, type: 'vaccine', title: 'موعد تحصين غامبورو', message: 'عنبر ب - غداً', severity: 'warning', read: 0 }
+    ],
+    sensors: [
+        { shed: 'عنبر أ', temperature: 28.0, humidity: 68.0, ammonia: 12.0 },
+        { shed: 'عنبر ب', temperature: 36.0, humidity: 72.0, ammonia: 18.0 },
+        { shed: 'عنبر ج', temperature: 27.5, humidity: 65.0, ammonia: 10.0 }
+    ]
+};
+
+function saveDB() {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(db));
+}
+
+// Override fetch for GitHub Pages (No Backend)
+const originalFetch = window.fetch;
+window.fetch = async function(url, opts) {
+    console.log('Mock Fetch:', url);
+    const path = url.toString();
+    
+    if (path.includes('/api/dashboard')) {
+        return { ok: true, json: async () => ({
+            total_birds: db.sheds.reduce((a, b) => a + b.current_birds, 0),
+            sheds_count: db.sheds.length,
+            sensors: db.sensors,
+            today_production: { eggs: 3200, feed: 450, water: 800, mortality: 2 },
+            production_7days: []
+        })};
+    }
+    
+    if (path.includes('/api/sheds')) {
+        return { ok: true, json: async () => db.sheds };
+    }
+    
+    if (path.includes('/api/tasks')) {
+        return { ok: true, json: async () => db.tasks };
+    }
+    
+    if (path.includes('/api/alerts')) {
+        return { ok: true, json: async () => db.alerts };
+    }
+    
+    if (path.includes('/api/sensors')) {
+        return { ok: true, json: async () => db.sensors };
+    }
+
+    // Fallback to original fetch for external assets
+    return originalFetch(url, opts);
+};
+
+
+// ==================== LOCAL MOCK DATA ====================
+const LOCAL_STORAGE_KEY = 'poultry_system_db';
+let db = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY)) || {
+    sheds: [
+        { id: 1, name: 'عنبر أ', bird_type: 'broiler', capacity: 10000, current_birds: 9800, age_days: 21, active: 1 },
+        { id: 2, name: 'عنبر ب', bird_type: 'broiler', capacity: 8000, current_birds: 7800, age_days: 14, active: 1 },
+        { id: 3, name: 'عنبر ج', bird_type: 'layer', capacity: 6000, current_birds: 5900, age_days: 180, active: 1 }
+    ],
+    tasks: [
+        { id: 1, title: 'إصلاح التهوية - عنبر ب (طارئ)', priority: 'high', time: 'الآن', done: 0, shed: 'عنبر ب' },
+        { id: 2, title: 'تحصين نيوكاسل - عنبر ب (8000 طير)', priority: 'high', time: '8:00 ص', done: 0, shed: 'عنبر ب' },
+        { id: 3, title: 'وزن عينة طيور - عنبر أ (50 طير)', priority: 'med', time: '10:00 ص', done: 1, shed: 'عنبر أ' }
+    ],
+    alerts: [
+        { id: 1, type: 'temperature', title: 'طارئ - حرارة مرتفعة عنبر ب', message: '36°م - يتجاوز الحد الأقصى', severity: 'danger', read: 0 },
+        { id: 2, type: 'vaccine', title: 'موعد تحصين غامبورو', message: 'عنبر ب - غداً', severity: 'warning', read: 0 }
+    ],
+    sensors: [
+        { shed: 'عنبر أ', temperature: 28.0, humidity: 68.0, ammonia: 12.0 },
+        { shed: 'عنبر ب', temperature: 36.0, humidity: 72.0, ammonia: 18.0 },
+        { shed: 'عنبر ج', temperature: 27.5, humidity: 65.0, ammonia: 10.0 }
+    ]
+};
+
+function saveDB() {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(db));
+}
+
+// Override fetch for GitHub Pages (No Backend)
+const originalFetch = window.fetch;
+window.fetch = async function(url, opts) {
+    const path = url.toString();
+    
+    if (path.includes('/api/dashboard')) {
+        return { ok: true, json: async () => ({
+            total_birds: db.sheds.reduce((a, b) => a + b.current_birds, 0),
+            sheds_count: db.sheds.length,
+            sensors: db.sensors,
+            unread_alerts: db.alerts.filter(a => !a.read).length,
+            pending_tasks: db.tasks.filter(t => !t.done).length,
+            today_production: { eggs: 3200, feed: 450, water: 800, mortality: 2 },
+            production_7days: []
+        })};
+    }
+    
+    if (path.includes('/api/sheds')) {
+        return { ok: true, json: async () => db.sheds };
+    }
+    
+    if (path.includes('/api/tasks')) {
+        return { ok: true, json: async () => db.tasks };
+    }
+    
+    if (path.includes('/api/alerts')) {
+        return { ok: true, json: async () => db.alerts };
+    }
+    
+    if (path.includes('/api/sensors')) {
+        return { ok: true, json: async () => db.sensors };
+    }
+
+    return originalFetch(url, opts);
+};
 
 // ==================== API HELPERS ====================
 async function apiFetch(path, opts={}) {
