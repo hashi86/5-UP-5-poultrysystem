@@ -2914,14 +2914,44 @@ window.fetch = async function(url, opts) {
 
 // ==================== API HELPERS ====================
 async function apiFetch(path, opts={}) {
-  try {
-    const res = await fetch(API + path, { headers: {'Content-Type':'application/json'}, ...opts });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || `HTTP ${res.status}`);
-    }
-    return await res.json();
-  } catch(e) { console.error('API error:', e); return null; }
+  console.log('API Call (Mocked):', path);
+  
+  // Simulated responses for local mode
+  if (path.includes('/health')) return { status: 'ok' };
+  if (path.includes('/dashboard')) return {
+      total_birds: 23500,
+      sheds_count: 3,
+      sensors: [
+        { shed: 'عنبر أ', temperature: 28.0, humidity: 68.0, ammonia: 12.0 },
+        { shed: 'عنبر ب', temperature: 36.0, humidity: 72.0, ammonia: 18.0 },
+        { shed: 'عنبر ج', temperature: 27.5, humidity: 65.0, ammonia: 10.0 }
+      ],
+      unread_alerts: 2,
+      pending_tasks: 3,
+      today_production: { eggs: 3200, feed: 450, water: 800, mortality: 2 },
+      production_7days: []
+  };
+  if (path.includes('/sheds')) return [
+    { id: 1, name: 'عنبر أ', bird_type: 'broiler', capacity: 10000, current_birds: 9800, age_days: 21, active: 1 },
+    { id: 2, name: 'عنبر ب', bird_type: 'broiler', capacity: 8000, current_birds: 7800, age_days: 14, active: 1 },
+    { id: 3, name: 'عنبر ج', bird_type: 'layer', capacity: 6000, current_birds: 5900, age_days: 180, active: 1 }
+  ];
+  if (path.includes('/tasks')) return [
+    { id: 1, title: 'إصلاح التهوية - عنبر ب (طارئ)', priority: 'high', time: 'الآن', done: 0, shed: 'عنبر ب' },
+    { id: 2, title: 'تحصين نيوكاسل - عنبر ب (8000 طير)', priority: 'high', time: '8:00 ص', done: 0, shed: 'عنبر ب' },
+    { id: 3, title: 'وزن عينة طيور - عنبر أ (50 طير)', priority: 'med', time: '10:00 ص', done: 1, shed: 'عنبر أ' }
+  ];
+  if (path.includes('/alerts')) return [
+    { id: 1, type: 'temperature', title: 'طارئ - حرارة مرتفعة عنبر ب', message: '36°م - يتجاوز الحد الأقصى', severity: 'danger', read: 0 },
+    { id: 2, type: 'vaccine', title: 'موعد تحصين غامبورو', message: 'عنبر ب - غداً', severity: 'warning', read: 0 }
+  ];
+  if (path.includes('/sensors')) return [
+    { shed: 'عنبر أ', temperature: 28.0, humidity: 68.0, ammonia: 12.0 },
+    { shed: 'عنبر ب', temperature: 36.0, humidity: 72.0, ammonia: 18.0 },
+    { shed: 'عنبر ج', temperature: 27.5, humidity: 65.0, ammonia: 10.0 }
+  ];
+
+  return [];
 }
 
 async function aiChat(messages, systemPrompt) {
@@ -2941,7 +2971,6 @@ async function aiAnalyzeImage(imageBase64, mediaType, prompt) {
 }
 
 // ==================== INIT ====================
-
 async function checkAPI() {
   console.log("Local Mode Active - Skipping Server Health Check");
   const el = document.getElementById('dbStatus');
@@ -2950,22 +2979,6 @@ async function checkAPI() {
     el.innerHTML = '<span class="db-dot"></span> متصل (وضع المحاكاة المحلية) ✓';
   }
   loadDashboard();
-}
-).then(r => {
-      if (r && r.updated) {
-        showToast('⏱️ تم تحديث عمر الطيور في جميع الحظائر تلقائياً');
-      }
-    });
-    apiFetch('/alerts/inventory-check').then(r => {
-      if (r && r.created > 0) {
-        showToast(`⚠️ ${r.created} تنبيه جديد لنقص في المخزون`);
-        loadDashboard();
-      }
-    });
-  } else {
-    el.className = 'db-status db-offline';
-    el.innerHTML = '<span class="db-dot"></span> غير متصل - تحقق من السيرفر';
-  }
 }
 
 function showToast(msg, duration=4000) {
